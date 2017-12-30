@@ -33,8 +33,64 @@ def get_number_of_final(word, contexts):
     final_states += sum((1 for k in contexts.keys() if k in suffixes))
     return final_states
 
-
 def get_states(word):
+    infixes = get_infixes(word)
+    contexts = get_contexts(infixes)
+
+    prefixes = {word[0:i] for i in range(len(word) + 1)}
+    different_contexts_states = {k for k, v in contexts.items() if len(v) > 1}
+    return different_contexts_states | prefixes
+
+
+def get_transitions(word):
+    states = sorted(list(get_states(word)), key=len)
+    transitions = {}
+
+    for state in states:
+        for letter in set(word):
+
+            new_state = state + letter
+
+            shortest_state = None
+
+            for other in states:
+                if other.endswith(new_state):
+                    shortest_state = other
+                    break;
+            if shortest_state:
+                transitions[(state, letter)] = shortest_state
+    return transitions
+
+def dotify(p):
+    if p == "":
+        return "ε"
+    else:
+        return p
+
+def draw_dawg(word, filename):
+    states = get_states(word)
+    transitions = get_transitions(word)
+
+    with open(filename, "w") as f:
+        f.write("digraph g {")
+        f.write("\n")
+
+        for (p, a), q in transitions.items():
+            if len(q) - len(p) > 1:
+                f.write('{} -> {} [label="{}",style=dotted];'.format(dotify(p), dotify(q), a))
+                f.write("\n")
+            else:
+                f.write('{} -> {} [label="{}"];'.format(dotify(p), dotify(q), a))
+                f.write("\n")
+
+        for p in states:
+            if word.endswith(p):
+                f.write('{} [shape=doublecircle];'.format(dotify(p), dotify(q), a))
+                f.write("\n")
+
+        f.write("}\n")
+
+def get_nums(word):
     infixes = get_infixes(word)
     contexts = get_contexts(infixes)
     return (get_number_of_states(word, contexts), get_number_of_final(word, contexts))
