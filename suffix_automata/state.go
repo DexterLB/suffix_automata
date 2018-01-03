@@ -6,57 +6,53 @@ import (
 )
 
 type State struct {
-	index       int
-	transitions []Transition
+	index              int
+	len                int
+	transitions        []int
+	nonZeroTransitions int
 }
 
-func NewState(alphabetSize int, stateIndex int) *State {
-	transitions := make([]Transition, alphabetSize)
+func NewState(alphabetSize int, stateIndex int, len int) *State {
+	transitions := make([]int, alphabetSize)
 
 	for i, _ := range transitions {
-		transitions[i].destinationIndex = -1
+		transitions[i] = -1
 	}
 
 	return &State{
-		index:       stateIndex,
-		transitions: transitions,
+		index:              stateIndex,
+		len:                len,
+		transitions:        transitions,
+		nonZeroTransitions: 0,
 	}
 }
 
-func (s *State) AddTransition(letter rune, destinationIndex int, primary bool) {
-	runeIndex := letter - 'a'
-	s.transitions[runeIndex].destinationIndex = destinationIndex
-	s.transitions[runeIndex].primary = primary
+func (s *State) AddTransition(letterIndex int, destinationIndex int) {
+	s.transitions[letterIndex] = destinationIndex
+	s.nonZeroTransitions += 1
 }
 
-func (s *State) Print(states []string) string {
+func (s *State) String() string {
 	var buffer bytes.Buffer
 
-	stateName := states[s.index]
 	if s.index == 0 {
-		buffer.WriteString("ε\n")
+		buffer.WriteString("ε(0)\n")
 	} else {
-		buffer.WriteString(fmt.Sprintf("%s\n", stateName))
+		buffer.WriteString(fmt.Sprintf("%d(%d)\n", s.index, s.len))
 	}
 
-	for i, tr := range s.transitions {
-		if tr.destinationIndex != -1 {
-			buffer.WriteString(tr.Print(rune(i+'a'), states))
+	for i, destination := range s.transitions {
+		if destination != -1 {
+			buffer.WriteString(PrintTransition(destination, rune(i+'a')))
 		}
 	}
 
 	return buffer.String()
 }
 
-type Transition struct {
-	destinationIndex int
-	primary          bool
-}
-
-func (t *Transition) Print(letter rune, states []string) string {
-	destinationName := states[t.destinationIndex]
-	if t.destinationIndex == 0 {
-		destinationName = "ε"
+func PrintTransition(destination int, letter rune) string {
+	if destination == 0 {
+		return fmt.Sprintf("\t---%c----> ε\n", letter)
 	}
-	return fmt.Sprintf("---%c----> %s (%t)\n", letter, destinationName, t.primary)
+	return fmt.Sprintf("\t---%c----> %d\n", letter, destination)
 }

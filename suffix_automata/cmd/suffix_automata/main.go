@@ -9,26 +9,19 @@ import (
 func main() {
 	alphabetSize := 3
 
+	word := "abcbc"
+
 	d := suffix_automata.NewDawg(alphabetSize)
+	for i, _ := range word {
+		d.ProcessCharacter(int(word[i] - 'a'))
+	}
+
+	d.ProcessCharacter('b' - 'a')
 	fmt.Printf("%s\n========\n", d)
+	d.Dotify()
 
-	d.AddState("a")
-	fmt.Printf("%s\n========\n", d)
+	states, transitions := d.Count()
 
-	d.AddState("b")
-	fmt.Printf("%s\n========\n", d)
-
-	// states := []string{"", "a", "b", "c", "ab"}
-
-	// e := suffix_automata.NewState(alphabetSize, 0)
-
-	// a := suffix_automata.NewState(alphabetSize, 1)
-	// fmt.Sprintf("%s\n%s\n===============\n", e.Print(states), a.Print(states))
-
-	// e.AddTransition('a', 1, true)
-	// fmt.Printf(e.Print(states))
-
-	// a.AddTransition('b', 4, true)
-	// fmt.Printf(a.Print(states))
+	fmt.Printf("States: %d\nTransitions: %d\n", states, transitions)
 
 }
