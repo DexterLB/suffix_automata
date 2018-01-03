@@ -7,35 +7,38 @@ import (
 )
 
 type Dawg struct {
-	alphabetSize int
-	qW           int
-	states       []*State
-	slinks       []int
+	qW int32
+
+	transitionsNum int32
+	states         []State
+	slinks         []int32
 }
 
-func (d *Dawg) Count() (int, int) {
-	trCount := 0
-	for i, _ := range d.states {
-		trCount += d.states[i].nonZeroTransitions
-	}
-
-	return len(d.states), trCount
-}
-
-func NewDawg(alphabetSize int) *Dawg {
-	states := []*State{NewState(alphabetSize, 0, 0)}
-	slinks := []int{-1}
+func NewDawg() *Dawg {
+	states := []State{*NewState(0, 0)}
+	slinks := []int32{-1}
 
 	return &Dawg{
-		alphabetSize: alphabetSize,
-		qW:           0,
-		states:       states,
-		slinks:       slinks,
+		qW:             0,
+		transitionsNum: 0,
+		states:         states,
+		slinks:         slinks,
 	}
 }
 
-func (d *Dawg) AddState(stateLen int) int {
-	newState := NewState(d.alphabetSize, len(d.states), stateLen)
+func (d *Dawg) Count() (int32, int32, int32) {
+	s := d.qW
+	var finalSum int32
+	for s != -1 {
+		finalSum += 1
+		s = d.slinks[s]
+	}
+
+	return int32(len(d.states)), d.transitionsNum, finalSum
+}
+
+func (d *Dawg) AddState(stateLen int32) int32 {
+	newState := *NewState(int32(len(d.states)), stateLen)
 	d.states = append(d.states, newState)
 	d.slinks = append(d.slinks, -1)
 
@@ -43,24 +46,28 @@ func (d *Dawg) AddState(stateLen int) int {
 }
 
 // <s, qwa>
-func (d *Dawg) FindSLink(letterIndex int) (int, int) {
+func (d *Dawg) FindSLink(letter byte) (int32, int32) {
 	qWa := d.AddState(d.states[d.qW].len + 1)
 	state := d.qW
 
-	for d.states[state].transitions[letterIndex] == -1 {
-		d.states[state].AddTransition(letterIndex, qWa)
+	_, dest := d.states[state].get(letter)
+	for dest == -1 {
+		d.states[state].AddTransition(letter, qWa)
+		d.transitionsNum += 1
+
 		if d.slinks[state] == -1 {
 			return -1, qWa
 		} else {
 			state = d.slinks[state]
 		}
+		_, dest = d.states[state].get(letter)
 	}
 
 	return state, qWa
 }
 
-func (d *Dawg) ProcessCharacter(letterIndex int) {
-	s, qWa := d.FindSLink(letterIndex)
+func (d *Dawg) ProcessCharacter(letter byte) {
+	s, qWa := d.FindSLink(letter)
 	d.qW = qWa
 
 	if s == -1 {
@@ -68,37 +75,41 @@ func (d *Dawg) ProcessCharacter(letterIndex int) {
 		return
 	}
 
-	destination := d.states[s].transitions[letterIndex]
+	_, destination := d.states[s].get(letter)
 	if destination == d.states[s].len {
-		d.slinks[d.qW] = d.states[s].transitions[letterIndex]
+		d.slinks[d.qW] = destination
 		return
 	}
 
-	sNew := d.AddSlink(s, letterIndex)
+	sNew := d.AddSlink(s, letter)
 	d.CopyTransitions(sNew, destination)
-	d.RedirectTransitions(s, letterIndex, destination, sNew)
+	d.RedirectTransitions(s, letter, destination, sNew)
 }
 
-func (d *Dawg) CopyTransitions(sNew int, destination int) {
-	sNewState := d.states[sNew]
+func (d *Dawg) CopyTransitions(sNew int32, destination int32) {
+	sNewState := &d.states[sNew]
 
-	for i := 0; i < d.alphabetSize; i++ {
-		if d.states[destination].transitions[i] != -1 {
-			sNewState.AddTransition(i, d.states[destination].transitions[i])
-		}
+	for _, transition := range d.states[destination].transitions {
+		sNewState.AddTransition(transition.letter, transition.destinationIndex)
+		d.transitionsNum += 1
 	}
 }
 
-func (d *Dawg) RedirectTransitions(s int, letterIndex int, destination int, sNew int) {
-	for s != -1 && d.states[s].transitions[letterIndex] == destination {
-		d.states[s].transitions[letterIndex] = sNew
+func (d *Dawg) RedirectTransitions(s int32, letter byte, t int32, sNew int32) {
+	ind, destination := d.states[s].get(letter)
+	for destination == t {
+		d.states[s].transitions[ind] = Transition{letter: letter, destinationIndex: sNew}
 		s = d.slinks[s]
+		if s == -1 {
+			break
+		}
+		ind, destination = d.states[s].get(letter)
 	}
 }
 
-func (d *Dawg) AddSlink(stateIndex int, letterIndex int) int {
-	state := d.states[stateIndex]
-	destinationIndex := state.transitions[letterIndex]
+func (d *Dawg) AddSlink(stateIndex int32, letter byte) int32 {
+	state := &d.states[stateIndex]
+	_, destinationIndex := state.get(letter)
 
 	newStateIndex := d.AddState(state.len + 1)
 
@@ -109,12 +120,7 @@ func (d *Dawg) AddSlink(stateIndex int, letterIndex int) int {
 	return newStateIndex
 }
 
-func (d *Dawg) AddTransaction(stateIndex int, letterIndex int, destinationIndex int) {
-	d.states[stateIndex].AddTransition(letterIndex, destinationIndex)
-	// fmt.Printf("Adding %d ---- %c ----> %d [%t]\n", stateIndex, letter, destinationIndex, primary)
-}
-
-func (d *Dawg) DotifyState(ind int) string {
+func (d *Dawg) DotifyState(ind int32) string {
 	if ind == 0 {
 		return "ε"
 	}
@@ -128,13 +134,12 @@ func (d *Dawg) Dotify() {
 	fmt.Fprintf(f, "digraph g{\n")
 
 	for i, _ := range d.states {
-		for j, _ := range d.states[i].transitions {
-			destination := d.states[i].transitions[j]
-			if destination != -1 {
-				if d.states[destination].len-d.states[i].len > 1 {
-					fmt.Fprintf(f, "%s -> %s [label=\"%c\",style=dotted];\n", d.DotifyState(i), d.DotifyState(destination), rune(j+'a'))
+		for _, tr := range d.states[i].transitions {
+			if tr.destinationIndex != -1 {
+				if d.states[tr.destinationIndex].len-d.states[i].len > 1 {
+					fmt.Fprintf(f, "%s -> %s [label=\"%c\",style=dotted];\n", d.DotifyState(int32(i)), d.DotifyState(tr.destinationIndex), rune(tr.letter))
 				} else {
-					fmt.Fprintf(f, "%s -> %s [label=\"%c\"];\n", d.DotifyState(i), d.DotifyState(destination), rune(j+'a'))
+					fmt.Fprintf(f, "%s -> %s [label=\"%c\"];\n", d.DotifyState(int32(i)), d.DotifyState(tr.destinationIndex), rune(tr.letter))
 				}
 			}
 		}

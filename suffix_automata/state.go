@@ -5,31 +5,36 @@ import (
 	"fmt"
 )
 
+type Transition struct {
+	destinationIndex int32
+	letter           byte
+}
+
 type State struct {
-	index              int
-	len                int
-	transitions        []int
-	nonZeroTransitions int
+	index       int32
+	len         int32
+	transitions []Transition
 }
 
-func NewState(alphabetSize int, stateIndex int, len int) *State {
-	transitions := make([]int, alphabetSize)
-
-	for i, _ := range transitions {
-		transitions[i] = -1
+func (s *State) get(letter byte) (int32, int32) {
+	for i, transition := range s.transitions {
+		if transition.letter == letter {
+			return int32(i), transition.destinationIndex
+		}
 	}
+	return -1, -1
+}
 
+func NewState(stateIndex int32, len int32) *State {
 	return &State{
-		index:              stateIndex,
-		len:                len,
-		transitions:        transitions,
-		nonZeroTransitions: 0,
+		index:       stateIndex,
+		len:         len,
+		transitions: nil,
 	}
 }
 
-func (s *State) AddTransition(letterIndex int, destinationIndex int) {
-	s.transitions[letterIndex] = destinationIndex
-	s.nonZeroTransitions += 1
+func (s *State) AddTransition(letter byte, destinationIndex int32) {
+	s.transitions = append(s.transitions, Transition{letter: letter, destinationIndex: destinationIndex})
 }
 
 func (s *State) String() string {
@@ -41,18 +46,16 @@ func (s *State) String() string {
 		buffer.WriteString(fmt.Sprintf("%d(%d)\n", s.index, s.len))
 	}
 
-	for i, destination := range s.transitions {
-		if destination != -1 {
-			buffer.WriteString(PrintTransition(destination, rune(i+'a')))
-		}
+	for _, transition := range s.transitions {
+		buffer.WriteString(fmt.Sprintf("%s\n", transition))
 	}
 
 	return buffer.String()
 }
 
-func PrintTransition(destination int, letter rune) string {
-	if destination == 0 {
-		return fmt.Sprintf("\t---%c----> ε\n", letter)
+func (t *Transition) String() string {
+	if t.destinationIndex == 0 {
+		return fmt.Sprintf("\t---%c----> ε\n", t.letter)
 	}
-	return fmt.Sprintf("\t---%c----> %d\n", letter, destination)
+	return fmt.Sprintf("\t---%c----> %d\n", rune(t.letter), t.destinationIndex)
 }

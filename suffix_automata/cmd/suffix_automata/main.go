@@ -7,21 +7,20 @@ import (
 )
 
 func main() {
-	alphabetSize := 3
-
 	word := "abcbc"
+	bytestring := []byte(word)
 
-	d := suffix_automata.NewDawg(alphabetSize)
-	for i, _ := range word {
-		d.ProcessCharacter(int(word[i] - 'a'))
+	d := suffix_automata.NewDawg()
+	for _, b := range bytestring {
+		d.ProcessCharacter(b)
 	}
 
-	d.ProcessCharacter('b' - 'a')
+	d.ProcessCharacter(byte('b'))
 	fmt.Printf("%s\n========\n", d)
 	d.Dotify()
 
-	states, transitions := d.Count()
+	states, transitions, finals := d.Count()
 
-	fmt.Printf("States: %d\nTransitions: %d\n", states, transitions)
+	fmt.Printf("States: %d\nTransitions: %d\nFinal states: %d\n", states, transitions, finals)
 
 }
