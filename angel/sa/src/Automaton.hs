@@ -7,8 +7,9 @@ import Debug.Trace (traceShowId)
 
 import Data.Char (ord, chr)
 
-import Data.Vector.Unboxed (Vector)
-import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Unboxed as VU
+import qualified Data.Vector as VB
+
 
 import qualified Data.List as L
 
@@ -17,71 +18,109 @@ alphabetOffset  = (ord 'a')
 lastLetter      = alphabetSize - 1
 
 data Inter = Inter {
-    transitions :: Vector Int
-  , slinks      :: Vector Int
-  , lens        :: Vector Int
-  , numStates   :: Int
+    transitions     :: VB.Vector Transitions
+  , slinks          :: VU.Vector Int
+  , lens            :: VU.Vector Int
+  , numStates       :: Int
+  , epsilonState    :: Int
+  , wordState       :: Int
+}
+
+data Transitions = Transitions {
+    withs           :: VU.Vector Char
+    tos             :: VU.Vector Int
 }
 
 emptyInter :: Inter
 emptyInter = Inter {
-        transitions = V.empty
-      , slinks      = V.empty
-      , lens        = V.empty
+        transitions = VB.empty
+      , slinks      = VU.empty
+      , lens        = VU.empty
       , numStates   = 0
+    }
+
+emptyTransitions :: Transitions
+emptyTransitions = Transitions {
+        with = VU.empty
+      , to   = VU.empty
     }
 
 addState :: Inter -> Inter
 addState (Inter { transitions, slinks, lens, numStates})
     = Inter {
-        transitions = transitions V.++ (V.replicate alphabetSize (-1))
+        transitions = V.snoc transitions emptyTransitions
       , lens        = V.snoc lens 0
       , slinks      = V.snoc slinks (-1)
       , numStates   = numStates + 1
     }
 
-setTransitions :: Vector Int         -- ^ Transitions
-               -> [(Int, Int, Int)]  -- ^ From, With, To
-               -> Vector Int
+setStateTransition :: (Char, Int) -> Transitions -> Transitions
+setStateTransition (with, to) (Transitions {withs, tos})
+    | (Just i) <- index, withs VU.! index == with = Transitions {
+            withs = withs
+            tos   = tos VU.// [(index, to)]
+        }
+    | (Just i) <- index = Transitions {
+            withs = insertVU index with withs
+            tos   = insertVU index   to   tos
+        }
+    | otherwise = Transitions {
+            withs = VU.snoc withs with
+            tos   = VU.snoc   tos   to
+        }
+    where
+        index = VU.findIndex (>= with) withs
 
-setTransitions transitions updates = transitions V.//
-    (map (\(from, with, to) -> (from * alphabetSize + with, to)) updates)
+setStateTransitions :: Transitions -- ^ Transitions
+                    -> [(Char, Int)]
+                    -> Transitions
+setStateTransitions = foldr setStateTransition
 
-setTransitionsI :: Inter -> [(Int, Int, Int)] -> Inter
+setTransitions :: Vector Transitions
+               -> [(Int, [(Char, Int)])]
+               -> Vector Transitions
+setTransitions transitions updates = transitions VB.//
+    (map (\(from, inner) -> (from, setStateTransitions (transitions VB.! from) inner))
+
+setTransitionsI :: Inter -> [(Int, [(Char, Int)])] -> Inter
 setTransitionsI i l = i { transitions = setTransitions (transitions i) l }
 
 setSlinks :: Vector Int -> [(Int, Int)] -> Vector Int
-setSlinks = (V.//)
+setSlinks = (VU.//)
 
 setSlinksI :: Inter -> [(Int, Int)] -> Inter
 setSlinksI i l = i { slinks = setSlinks (slinks i) l }
 
 setLens :: Vector Int -> [(Int, Int)] -> Vector Int
-setLens = (V.//)
+setLens = (VU.//)
 
 setLensI :: Inter -> [(Int, Int)] -> Inter
 setLensI i l = i { lens = setLens (lens i) l }
 
 
-transition :: Vector Int
-           -> Int   -- ^ State index
-           -> Int   -- ^ Transition index
-           -> Int   -- ^ State which the transition points to
-transition transitions from with
-    = transitions V.! (from * alphabetSize + with)
+transition :: Vector Transitions
+           -> Int           -- ^ State index
+           -> Char          -- ^ Transition index
+           -> Maybe Int     -- ^ State which the transition points to
+transition transitions from with = transitionFrom (transitions VB.! from) with
+
+transitionFrom :: Transitions -> Char -> Maybe Int
+transitionFrom (Transitions { withs, tos }) c
+    = (tos VU.!) <$> (VU.findIndex withs c)
 
 
-decodeLetter :: Int -> Char
-decodeLetter i = chr $ i + alphabetOffset
+decodeLetter :: Char -> Char
+decodeLetter = id
 
-encodeLetter :: Char -> Int
-encodeLetter c = (ord c) - alphabetOffset
+encodeLetter :: Char -> Char
+encodeLetter = id
 
-transitionsFrom :: Vector Int -> Int -> [(Int, Int, Int)]
+transitionsFrom :: Vector Transitions -> Int -> [(Int, Char, Int)]
 transitionsFrom transitions from =
-    map
-        (\with -> (from, with, transition transitions from with))
-        [0..lastLetter]
+    map (\(with, to) -> (from, with, to)) (zipTransitions (transitions VB.! from))
+
+zipTransitions :: Transitions -> [(Char, Int)]
+zipTransitions (Transitions { withs, tos }) = zip (VU.toList withs) (VU.toList tos)
 
 -- Prints
 dotify :: Inter -> String
@@ -128,3 +167,9 @@ transitionLabel lens (from, with, to)
 
 dotifyToFile :: FilePath -> Inter -> IO ()
 dotifyToFile f i = writeFile f (dotify i)
+
+
+-- utils
+
+insertVU :: Int -> a -> VU.Vector a -> VU.Vector a
+insertVU index elem v = (VU.snoc (VU.take index v) elem) VU.++ (VU.drop index v)
