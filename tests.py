@@ -24,14 +24,7 @@ def get_number_of_states(word, contexts):
     return num_states
 
 def get_number_of_final(word, contexts):
-    suffixes = set(get_suffixes(word))
-    final_states = 1
-
-    print(contexts.keys())
-    print(set(suffixes))
-
-    final_states += sum((1 for k in contexts.keys() if k in suffixes))
-    return final_states
+    return len({state for state in get_states(word) if word.endswith(state)})
 
 def get_states(word):
     infixes = get_infixes(word)
@@ -93,4 +86,4 @@ def draw_dawg(word, filename):
 def get_nums(word):
     infixes = get_infixes(word)
     contexts = get_contexts(infixes)
-    return (get_number_of_states(word, contexts), get_number_of_final(word, contexts))
+    return (get_number_of_states(word, contexts), len(get_transitions(word)), get_number_of_final(word, contexts))
