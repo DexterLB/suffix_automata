@@ -11,15 +11,14 @@ type Transition struct {
 }
 
 type State struct {
-	index       int32
 	len         int32
 	transitions []Transition
 }
 
 func (s *State) get(letter byte) (int32, int32) {
-	for i, transition := range s.transitions {
-		if transition.letter == letter {
-			return int32(i), transition.destinationIndex
+	for i, _ := range s.transitions {
+		if s.transitions[i].letter == letter {
+			return int32(i), s.transitions[i].destinationIndex
 		}
 	}
 	return -1, -1
@@ -27,7 +26,6 @@ func (s *State) get(letter byte) (int32, int32) {
 
 func NewState(stateIndex int32, len int32) *State {
 	return &State{
-		index:       stateIndex,
 		len:         len,
 		transitions: nil,
 	}
@@ -40,11 +38,11 @@ func (s *State) AddTransition(letter byte, destinationIndex int32) {
 func (s *State) String() string {
 	var buffer bytes.Buffer
 
-	if s.index == 0 {
-		buffer.WriteString("ε(0)\n")
-	} else {
-		buffer.WriteString(fmt.Sprintf("%d(%d)\n", s.index, s.len))
-	}
+	// if s.len == 0 {
+	// 	buffer.WriteString("ε(0)\n")
+	// } else {
+	// 	buffer.WriteString(fmt.Sprintf("%d(%d)\n", s.index, s.len))
+	// }
 
 	for _, transition := range s.transitions {
 		buffer.WriteString(fmt.Sprintf("%s\n", transition))

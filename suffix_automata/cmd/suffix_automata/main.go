@@ -9,12 +9,18 @@ import (
 )
 
 func main() {
-	// word := "abcbc"
-	// bytestring := []byte(word)
+	// memf, err := os.Create("mem.heap")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer memf.Close()
 
-	// d.ProcessCharacter(byte('b'))
-	// fmt.Printf("%s\n========\n", d)
-	// d.Dotify()
+	// f, err := os.Create("godo.prof")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// pprof.StartCPUProfile(f)
+	// defer pprof.StopCPUProfile()
 
 	word, _ := ioutil.ReadAll(os.Stdin)
 
@@ -22,7 +28,9 @@ func main() {
 	for _, b := range word {
 		d.ProcessCharacter(b)
 	}
+	// pprof.WriteHeapProfile(memf)
 
 	states, transitions, finals := d.Count()
 	fmt.Printf("States: %d\nTransitions: %d\nFinal states: %d\n", states, transitions, finals)
+	//d.Dotify()
 }

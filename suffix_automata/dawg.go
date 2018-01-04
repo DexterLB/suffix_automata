@@ -38,11 +38,10 @@ func (d *Dawg) Count() (int32, int32, int32) {
 }
 
 func (d *Dawg) AddState(stateLen int32) int32 {
-	newState := *NewState(int32(len(d.states)), stateLen)
-	d.states = append(d.states, newState)
+	d.states = append(d.states, State{len: stateLen})
 	d.slinks = append(d.slinks, -1)
 
-	return newState.index
+	return int32(len(d.states)) - 1
 }
 
 // <s, qwa>
@@ -76,7 +75,7 @@ func (d *Dawg) ProcessCharacter(letter byte) {
 	}
 
 	_, destination := d.states[s].get(letter)
-	if destination == d.states[s].len {
+	if d.states[destination].len == d.states[s].len+1 {
 		d.slinks[d.qW] = destination
 		return
 	}
