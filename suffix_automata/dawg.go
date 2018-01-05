@@ -14,8 +14,9 @@ type Dawg struct {
 	slinks         []int32
 }
 
-func NewDawg() *Dawg {
-	states := []State{*NewState(0, 0)}
+func NewDawg(len int) *Dawg {
+	states := make([]State, 1, 2*len-1)
+	states[0].len = 0
 	slinks := []int32{-1}
 
 	return &Dawg{
@@ -38,7 +39,7 @@ func (d *Dawg) Count() (int32, int32, int32) {
 }
 
 func (d *Dawg) AddState(stateLen int32) int32 {
-	d.states = append(d.states, State{len: stateLen})
+	d.states = append(d.states, State{len: stateLen, transitions: make([]Transition, 0, 2)})
 	d.slinks = append(d.slinks, -1)
 
 	return int32(len(d.states)) - 1
