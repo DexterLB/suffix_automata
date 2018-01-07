@@ -1,4 +1,7 @@
 #![feature(vec_resize_default)]
+#![feature(alloc_system)]
+
+extern crate alloc_system;
 
 use std::io;
 use std::io::Read;
@@ -6,6 +9,7 @@ use std::process;
 
 extern crate cpuprofiler;
 use cpuprofiler::PROFILER;
+
 
 struct Blumer {
     states: Vec<State>,
@@ -122,18 +126,27 @@ impl Blumer {
     }
 
     fn state(&self, index: i32) -> &State {
-        &self.states[index as usize]
+        unsafe {
+            self.states.get_unchecked(index as usize)
+        }
     }
 
     fn mutstate(&mut self, index: i32) -> &mut State {
-        &mut self.states[index as usize]
+        unsafe {
+            self.states.get_unchecked_mut(index as usize)
+        }
     }
 }
 
+#[derive(Clone)]
+#[repr(packed)]
+struct Transition(u8, i32);
+
+#[repr(packed)]
 struct State {
     len:    i32,
     slink:  i32,
-    transitions: Vec<(u8, i32)>
+    transitions: Vec<Transition> // todo: split this in two
 }
 
 impl Default for State {
@@ -152,11 +165,11 @@ impl State {
     // }
 
     fn transition_index(&self, with: u8) -> Option<usize> {
-        self.transitions.iter().position(|&(c, _)| c == with)
+        self.transitions.iter().position(|ref t| t.0 == with)
     }
 
     fn transition_to(&self, with: u8, to: i32) -> Option<usize> {
-        self.transitions.iter().position(|&(c, t)| c == with && t == to)
+        self.transitions.iter().position(|ref t| t.0 == with && t.1 == to)
     }
 
     // fn set_transition(&mut self, with: u8, to: i32) {
@@ -167,7 +180,7 @@ impl State {
     // }
 
     fn add_transition(&mut self, with: u8, to: i32) {
-        self.transitions.push((with, to))
+        self.transitions.push(Transition(with, to))
     }
 
     // fn set_transition_at(&mut self, at: usize, to: i32) {
