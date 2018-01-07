@@ -7,8 +7,8 @@ use std::io;
 use std::io::Read;
 use std::process;
 
-extern crate cpuprofiler;
-use cpuprofiler::PROFILER;
+// extern crate cpuprofiler;
+// use cpuprofiler::PROFILER;
 
 
 struct Blumer {
@@ -28,6 +28,26 @@ impl Default for Blumer {
 const EPSILON_STATE: i32 = 0;
 
 impl Blumer {
+    fn count_states(&self) -> usize {
+        self.states.len()
+    }
+
+    fn count_transitions(&self) -> usize {
+        self.states.iter().map(|s| s.transitions.len()).sum()
+    }
+
+    fn count_finals(&self) -> usize {
+        let mut n: usize = 0;
+        let mut state = self.word_state;
+
+        while state != -1 {
+            n = n + 1;
+            state = self.state(state).slink;
+        }
+
+        n
+    }
+
     fn process_chars<I>(&mut self, chars: I)
         where
             I: Iterator<Item = u8>
@@ -202,13 +222,11 @@ fn main() {
 
     let mut b = Blumer::default();
 
-    PROFILER.lock().unwrap().start("./blumer.profile").expect("Couldn't start");
+    // PROFILER.lock().unwrap().start("./blumer.profile").expect("Couldn't start");
     b.process_chars(buf.into_iter().filter(|&c| c <= 'z' as u8 && c >= 'a' as u8));
-    PROFILER.lock().unwrap().stop().expect("Couldn't stop");
+    // PROFILER.lock().unwrap().stop().expect("Couldn't stop");
 
-    let transitions: usize = b.states.iter().map(|s| s.transitions.len()).sum();
-
-    println!("{:?} {:?}", b.states.len(), transitions);
+    println!("{:?}\n{:?}\n{:?}", b.count_states(), b.count_transitions(), b.count_finals());
 
     process::exit(0);
 }
