@@ -66,7 +66,7 @@ func (d *Dawg) AddState(stateLen int32) int32 {
 }
 
 // <s, qwa>
-func (d *Dawg) FindSLink(letter byte) (int32, int32) {
+func (d *Dawg) FindSLink(letter byte) (int32, int32, int32) {
 	qWa := d.AddState(d.states[d.qW].len + 1)
 	state := d.qW
 
@@ -75,18 +75,18 @@ func (d *Dawg) FindSLink(letter byte) (int32, int32) {
 		d.AddTransition(state, letter, qWa)
 
 		if d.slinks[state] == -1 {
-			return -1, qWa
+			return -1, -1, qWa
 		} else {
 			state = d.slinks[state]
 		}
 		_, dest = d.get(state, letter)
 	}
 
-	return state, qWa
+	return state, dest, qWa
 }
 
 func (d *Dawg) ProcessCharacter(letter byte) {
-	s, qWa := d.FindSLink(letter)
+	s, destination, qWa := d.FindSLink(letter)
 	d.qW = qWa
 
 	if s == -1 {
@@ -94,7 +94,6 @@ func (d *Dawg) ProcessCharacter(letter byte) {
 		return
 	}
 
-	_, destination := d.get(s, letter)
 	if d.states[destination].len == d.states[s].len+1 {
 		d.slinks[d.qW] = destination
 		return
