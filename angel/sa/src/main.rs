@@ -4,7 +4,8 @@
 
 extern crate alloc_system;
 
-use std::io;
+use std::env;
+use std::fs::File;
 use std::io::Read;
 use std::process;
 
@@ -33,6 +34,17 @@ impl Default for Blumer {
 const EPSILON_STATE: i32 = 0;
 
 impl Blumer {
+    fn new(size: usize) -> Blumer {
+        let mut states = Vec::with_capacity(size * 2);
+        states.resize_default(1);
+
+        Blumer {
+            states: states,
+            word_state: 0,
+            transitions: Vec::with_capacity(size / 2)
+        }
+    }
+
     fn count_states(&self) -> usize {
         self.states.len()
     }
@@ -296,51 +308,32 @@ impl Default for State {
     }
 }
 
-impl State {
-    // fn transition(&self, with: u8) -> Option<i32> {
-    //     self.transitions.iter().find(|&&(c, _)| c == with).map(|&(_, s)| s)
-    // }
-
-    // fn transition_index(&self, with: u8) -> Option<usize> {
-    //     self.transitions.iter().position(|ref t| t.0 == with)
-    // }
-
-
-    // fn set_transition(&mut self, with: u8, to: i32) {
-    //     match self.transition_index(with) {
-    //         Some(index) => self.set_transition_at(index, to),
-    //         None        => self.add_transition(with, to)
-    //     }
-    // }
-
-    // fn add_transition(&mut self, with: u8, to: i32) {
-    //     self.transitions.push(Transition(with, to))
-    // }
-
-    // fn set_transition_at(&mut self, at: usize, to: i32) {
-    //     self.transitions[at].1 = to
-    // }
-}
-
 
 fn main() {
-    let mut buf = vec![0; 10];
+    let mut args = env::args();
 
-    match io::stdin().read_to_end(&mut buf) {
-        Ok(_) => (),
-        Err(e) => {
-            println!("error reading data: {:?}", e);
-            return;
-        }
-    }
+    args.next().expect("no zeroth argument?!");
+    let filename = args.next().expect("no input file provided");
+    let mut f = File::open(filename).expect("unable to open file");
+    let size = f.metadata().expect("unable to get file metadata").len();
 
-    let mut b = Blumer::default();
+    let mut buf = Vec::with_capacity(size as usize);
+
+    f.read_to_end(&mut buf).expect("unable to read file");
+
+    let mut b = Blumer::new(size as usize);
 
     // PROFILER.lock().unwrap().start("./blumer.profile").expect("Couldn't start");
-    b.process_chars(buf.into_iter().filter(|&c| c <= 'z' as u8 && c >= 'a' as u8));
+    // b.process_chars(buf.into_iter().filter(|&c| c <= 'z' as u8 && c >= 'a' as u8));
+    b.process_chars(buf.into_iter());
     // PROFILER.lock().unwrap().stop().expect("Couldn't stop");
 
-    println!("{:?}\n{:?}\n{:?}", b.count_states(), b.count_transitions(), b.count_finals());
+    println!(
+        "{:?} states, of which {:?} are final.\n{:?} transitions.",
+        b.count_states(),
+        b.count_finals(),
+        b.count_transitions()
+    );
 
     process::exit(0);
 }
