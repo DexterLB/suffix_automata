@@ -66,27 +66,27 @@ func (d *Dawg) AddState(stateLen int32) int32 {
 }
 
 // <s, qwa>
-func (d *Dawg) FindSLink(letter byte) (int32, int32, int32) {
+func (d *Dawg) FindSLink(letter byte) (int32, int32, int32, int32) {
 	qWa := d.AddState(d.states[d.qW].len + 1)
 	state := d.qW
 
-	_, dest := d.get(state, letter)
+	ind, dest := d.get(state, letter)
 	for dest == -1 {
 		d.AddTransition(state, letter, qWa)
 
 		if d.slinks[state] == -1 {
-			return -1, -1, qWa
+			return -1, qWa, -1, -1
 		} else {
 			state = d.slinks[state]
 		}
-		_, dest = d.get(state, letter)
+		ind, dest = d.get(state, letter)
 	}
 
-	return state, dest, qWa
+	return state, qWa, ind, dest
 }
 
 func (d *Dawg) ProcessCharacter(letter byte) {
-	s, destination, qWa := d.FindSLink(letter)
+	s, qWa, ind, destination := d.FindSLink(letter)
 	d.qW = qWa
 
 	if s == -1 {
@@ -99,9 +99,9 @@ func (d *Dawg) ProcessCharacter(letter byte) {
 		return
 	}
 
-	sNew := d.AddSlink(s, letter)
+	sNew := d.AddSlink(s, letter, destination)
 	d.CopyTransitions(sNew, destination)
-	d.RedirectTransitions(s, letter, destination, sNew)
+	d.RedirectTransitions(s, letter, destination, sNew, ind, destination)
 }
 
 func (d *Dawg) CopyTransitions(sNew int32, destination int32) {
@@ -112,9 +112,7 @@ func (d *Dawg) CopyTransitions(sNew int32, destination int32) {
 	}
 }
 
-func (d *Dawg) RedirectTransitions(s int32, letter byte, t int32, sNew int32) {
-	ind, destination := d.get(s, letter)
-
+func (d *Dawg) RedirectTransitions(s int32, letter byte, t int32, sNew int32, ind int32, destination int32) {
 	for destination == t {
 		d.transitions[ind] = Transition{letter: letter, destinationIndex: sNew, prev: d.transitions[ind].prev}
 		s = d.slinks[s]
@@ -125,9 +123,7 @@ func (d *Dawg) RedirectTransitions(s int32, letter byte, t int32, sNew int32) {
 	}
 }
 
-func (d *Dawg) AddSlink(stateIndex int32, letter byte) int32 {
-	_, destinationIndex := d.get(stateIndex, letter)
-
+func (d *Dawg) AddSlink(stateIndex int32, letter byte, destinationIndex int32) int32 {
 	newStateIndex := d.AddState(d.states[stateIndex].len + 1)
 
 	d.slinks[newStateIndex] = d.slinks[destinationIndex]
