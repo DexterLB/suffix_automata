@@ -329,7 +329,7 @@ fn main() {
     // PROFILER.lock().unwrap().stop().expect("Couldn't stop");
 
     println!(
-        "{:?} states, of which {:?} are final.\n{:?} transitions.",
+        "Уважаеми гл. ас. Митанкин,\n\nАвтоматът ми има {:?} състояния, от които {:?} финални.\nПреходите са {:?}.\n\nБлагодаря!",
         b.count_states(),
         b.count_finals(),
         b.count_transitions()
